@@ -26,6 +26,7 @@ export default function CheckoutSection({
   });
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [orderId, setOrderId] = useState<string | null>(null);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -50,17 +51,37 @@ export default function CheckoutSection({
 
     setSubmitting(true);
 
-    // --- DEMO SUBMISSION ---
-    // In a real implementation, this would POST to a server-side API route
-    // which uses the Supabase service role key to create the order.
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer: {
+            fullName: form.fullName,
+            email: form.email,
+            phone: form.phone || undefined,
+            street: form.street,
+            city: form.city,
+            zip: form.zip,
+          },
+          items: cart,
+        }),
+      });
 
-      // Simulate success
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.error("Order API error:", data.error);
+        setStatus("error");
+        return;
+      }
+
+      setOrderId(data.orderId);
       clearCart();
       onCartChange();
       setStatus("success");
-    } catch {
+    } catch (err) {
+      console.error("Order submission failed:", err);
       setStatus("error");
     } finally {
       setSubmitting(false);
@@ -77,10 +98,14 @@ export default function CheckoutSection({
           <h2 className="text-2xl font-bold text-neutral-900">
             Objednávka odeslána!
           </h2>
+          {orderId && (
+            <p className="mt-2 text-sm text-neutral-400">
+              Číslo objednávky: <strong className="text-neutral-600">{orderId.slice(0, 8)}</strong>
+            </p>
+          )}
           <p className="mt-3 text-neutral-500">
-            Děkujeme, {form.fullName}. Toto je demo potvrzení.
-            V produkční verzi byste obdrželi potvrzovací e-mail na{" "}
-            <strong>{form.email}</strong>.
+            Děkujeme, {form.fullName}. Potvrzení objednávky jsme odeslali
+            na <strong>{form.email}</strong>.
           </p>
           <button
             onClick={onBack}
@@ -229,7 +254,7 @@ export default function CheckoutSection({
           </div>
 
           <p className="text-center text-xs text-neutral-400">
-            Toto je demo objednávka. Není zpracována žádná platba.
+            Po odeslání obdržíte potvrzení na váš e-mail.
           </p>
         </form>
       </div>
