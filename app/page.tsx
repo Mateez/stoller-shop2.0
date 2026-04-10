@@ -61,10 +61,7 @@ export default function HomePage() {
     return (
       <CheckoutSection
         cart={cart}
-        onCartChange={() => {
-          refreshCart();
-          setView("shop");
-        }}
+        onCartChange={refreshCart}
         onBack={() => setView("shop")}
       />
     );

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CartItem, CheckoutFormData } from "./types";
 import { clearCart, cartTotalPrice } from "@/lib/cart";
+import { submitOrder } from "@/lib/utils/submit-order";
 import { ArrowLeft, CheckCircle, AlertCircle } from "lucide-react";
 
 interface CheckoutSectionProps {
@@ -26,7 +27,7 @@ export default function CheckoutSection({
   });
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
-  const [orderId, setOrderId] = useState<string | null>(null);
+  const [orderNumber, setOrderNumber] = useState<string | null>(null);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -52,31 +53,30 @@ export default function CheckoutSection({
     setSubmitting(true);
 
     try {
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customer: {
-            fullName: form.fullName,
-            email: form.email,
-            phone: form.phone || undefined,
-            street: form.street,
-            city: form.city,
-            zip: form.zip,
-          },
-          items: cart,
-        }),
+      const result = await submitOrder({
+        customer: {
+          fullName: form.fullName,
+          email: form.email,
+          phone: form.phone || undefined,
+          street: form.street,
+          city: form.city,
+          zip: form.zip,
+        },
+        items: cart.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          selectedBrandName: item.selectedBrandName,
+          selectedModelName: item.selectedModelName,
+        })),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        console.error("Order API error:", data.error);
+      if (!result.success) {
+        console.error("Order API error:", result.error);
         setStatus("error");
         return;
       }
 
-      setOrderId(data.orderId);
+      setOrderNumber(result.order.orderNumber);
       clearCart();
       onCartChange();
       setStatus("success");
@@ -98,9 +98,9 @@ export default function CheckoutSection({
           <h2 className="text-2xl font-bold text-neutral-900">
             Objednávka odeslána!
           </h2>
-          {orderId && (
+          {orderNumber && (
             <p className="mt-2 text-sm text-neutral-400">
-              Číslo objednávky: <strong className="text-neutral-600">{orderId.slice(0, 8)}</strong>
+              Číslo objednávky: <strong className="text-neutral-600">{orderNumber}</strong>
             </p>
           )}
           <p className="mt-3 text-neutral-500">
